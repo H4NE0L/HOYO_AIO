@@ -1,4 +1,6 @@
-import { warpVersion, pitySummary, WARP_PAGE } from './lib/warp.js';
+import { deadline } from './lib/deadlines.js';
+import { RECORD_GAMES } from './lib/records.js';
+import { warpVersion, pitySummary } from './lib/warp.js';
 import { summarize } from './lib/gacha.js';
 import { GAMES } from './lib/games.js';
 import { settingsFrom, dayKey } from './lib/state.js';
@@ -76,48 +78,48 @@ async function render() {
     ui.auto.checked = settings.auto && settings.games[id]; ui.auto.disabled = saving;
     const result = stored.results?.[id], current = result?.day === dayKey();
     ui.result.dataset.status = current ? result.status : 'pending';
-    ui.result.textContent = current ? ({ success: '오늘 출석 완료', already: '오늘 출석 완료', login: '로그인 필요', verification: '보안 인증 필요', network: '연결 오류', api: '출석 확인 필요' }[result.status] ?? '출석 확인 필요') : '아직 출석 확인 전';
+    ui.result.textContent = !connection?.connected || !account ? '미연결' : current ? ({ success: '오늘 출석 완료', already: '오늘 출석 완료', login: '로그인 필요', verification: '보안 인증 필요', network: '연결 오류', api: '출석 확인 필요' }[result.status] ?? '출석 확인 필요') : '아직 출석 확인 전';
     ui.result.title = result?.message ?? '';
     while (ui.gacha.childNodes.length > 1) ui.gacha.lastChild.remove();
     const gacha = account ? stored[`gacha:${id}:${account.uid}`] : undefined;
     const official = id === 'starrail' ? warpVersion(record?.warp, record?.calendar) : null;
     const stats = official ?? summarizeVersion(gacha?.records, record?.calendar);
-    if (stats.status === 'available') {
-      const total = el('div', 'gacha-total'); total.append(el('span', 'version-label', `${stats.version} 버전 가챠`), el('strong', 'pull-total', stats.total == null ? '확인 필요' : `${number(stats.total)}회`));
-      ui.gacha.append(total);
-      const breakdown = el('div', 'pull-breakdown');
-      for (const [label, count] of [['캐릭터', stats.character], [id === 'genshin' ? '무기' : '광추', stats.weapon], ['상시', stats.standard], ...(stats.chronicled ? [['묶음 기원', stats.chronicled]] : [])]) {
-        const box = el('div', 'pull-count', label); box.append(el('strong', '', count == null ? '확인 필요' : `${number(count)}회`)); breakdown.append(box);
-      }
-      ui.gacha.append(breakdown, el('p', 'hint', official ? '공식 워프 통계 기준' : record?.calendarError ? '저장된 픽업 기간 · 가져온 기록 기준' : stats.partial ? '일부 제공 기간 · 가져온 기록 기준' : '제공된 픽업 기간 · 가져온 기록 기준'));
-    } else {
-      const reason = stats.status === 'records-missing' ? `${stats.version} 버전 · 기록 가져오기 필요` : stats.status === 'schedule-stale' ? '가챠 일정 갱신 필요' : '가챠 일정 확인 필요';
-      ui.gacha.append(el('p', 'unavailable', reason));
-    }
+    const now = Date.now();
+    const active = record?.calendar?.periods?.filter(period => period.pool === 'character' && period.start <= now && now < period.end) ?? [];
+    const schedule = el('p', 'pickup-schedule');
+    schedule.textContent = active.length ? `${record.calendar.version} · ${active.map(period => period.featured?.length ? period.featured.join('·') : period.name || '캐릭터 픽업').join(' / ')} · ${new Date(Math.min(...active.map(period => period.end))).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric' })}까지 (${deadline(Math.min(...active.map(period => period.end)))})` : '현재 픽업 일정 확인 필요';
+    ui.gacha.append(schedule);
     const imported = gacha?.records ? summarize(gacha.records) : null;
+    const breakdown = el('div', 'pull-breakdown');
     for (const [pool, name] of [['character', '캐릭터'], ['weapon', id === 'genshin' ? '무기' : '광추'], ['standard', '상시']]) {
+      const box = el('div', 'pull-count'); box.append(el('span', '', name));
+      const count = stats.status === 'available' ? stats[pool] : null;
+      box.append(el('strong', '', count == null ? '—' : `${number(count)}회`));
       const api = record?.warp?.pools?.[pool];
       const local = imported?.pools?.find(item => item.pool === pool);
       const data = api && !api.error ? api : local?.known ? { pity: local.pity, guaranteed: null } : null;
-      ui.gacha.append(el('p', 'pity-note', `${name} · ${pitySummary(pool, data, id)}`));
+      box.append(el('p', 'pity-note', pitySummary(pool, data, id))); breakdown.append(box);
     }
-    if (id === 'starrail') {
-      ui.gacha.append(link('공식 워프 통계 ↗', WARP_PAGE));
-      const recent = record?.warp?.pools?.character?.recent?.[0];
-      if (recent) {
-        const row = el('div', 'recent-warp');
-        if (recent.icon) { const image = el('img'); image.src = recent.icon; image.alt = ''; image.addEventListener('error', () => image.remove(), { once: true }); row.append(image); }
-        row.append(el('span', '', `최근 5성 · ${recent.name} · ${number(recent.count)}회`)); ui.gacha.append(row);
-      }
-      if (record?.warpError || Object.values(record?.warp?.pools ?? {}).some(pool => pool.error)) ui.gacha.append(el('p', 'hint error', '공식 워프 통계 확인 필요 · 공식 페이지 로그인 후 다시 동기화'));
-    }
+    ui.gacha.append(breakdown);
+    if (stats.status !== 'available') ui.gacha.append(el('p', 'hint', stats.status === 'records-missing' ? '횟수 확인: 상세 페이지에서 기록 가져오기' : stats.status === 'schedule-stale' ? '가챠 일정 갱신 필요' : '가챠 일정 확인 필요'));
+    if (record?.warpError || Object.values(record?.warp?.pools ?? {}).some(pool => pool.error)) ui.gacha.append(el('p', 'hint error', '공식 통계 확인 필요 · 상세에서 확인'));
     while (ui.content.childNodes.length > 1) ui.content.lastChild.remove();
-    const recent = record?.content.filter(item => item.period === 1) ?? [];
-    if (!recent.length) ui.content.append(el('p', 'hint', '정보 동기화 후 최근 결과를 확인할 수 있습니다.'));
-    for (const item of recent) {
-      const row = el('div', 'content-result'); row.append(el('span', 'content-name', item.name), el('strong', item.error ? 'content-value unavailable error' : item.hasData && item.stars != null ? 'content-value' : 'content-value unavailable', item.error ? '조회 실패' : item.hasData && item.stars != null ? `${number(item.stars)}${item.mode === 'theater' ? '메달' : '별'}` : item.hasData ? '정보 없음' : '기록 없음'));
-      if (item.error) row.title = item.error; ui.content.append(row);
+    const grid = el('div', 'content-grid');
+    for (const mode of RECORD_GAMES[id].modes) {
+      const item = record?.content.find(item => item.mode === mode.id && item.period === 1);
+      const row = el('div', `content-result${mode.id === 'anomaly' ? ' anomaly' : ''}`);
+      const expired = item?.end && item.end <= now;
+      const max = { abyss: 36, chaos: 36, fiction: 12, shadow: 12 }[mode.id];
+      const completed = !expired && item?.hasData && max != null && item.stars >= max;
+      row.classList.toggle('needs-attention', !completed);
+      row.append(el('span', 'content-name', mode.name), el('strong', item?.error ? 'content-value unavailable error' : item?.hasData && item.stars != null && !expired ? 'content-value' : 'content-value unavailable', expired ? '갱신 필요' : item?.error ? '조회 실패' : item?.hasData && item.stars != null ? `${number(item.stars)}${mode.id === 'theater' ? '메달' : '별'}` : item ? '미진행' : '미조회'));
+      row.append(el('span', 'reset-day', item?.end ? `초기화 ${deadline(item.end)}` : '초기화 일정 확인 필요'));
+      if (!completed && !expired && item?.hasData && item.stars != null && max != null) row.append(el('span', 'remaining-label', `${Math.max(0, max - item.stars)}별 남음`));
+      if (completed) row.append(el('span', 'complete-label', '완료'));
+      if (item?.error) row.title = item.error;
+      grid.append(row);
     }
+    ui.content.append(grid);
     ui.syncButton.disabled = syncing.has(id); ui.syncButton.textContent = syncing.has(id) ? '동기화 중…' : '정보 동기화';
     const syncError = stored.profiles?.[id]?.error ?? record?.profileError ?? connection?.gameErrors?.[id];
     ui.syncTime.textContent = syncError ? '동기화 확인 필요 · 상세 페이지에서 확인' : record?.at ? `동기화 ${date(record.at)}` : '';

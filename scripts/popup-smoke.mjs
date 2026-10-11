@@ -42,7 +42,7 @@ try {
         }
         if (message.type === 'sync-record') {
           const account = roles[message.game][0], key = `record:${message.game}:${account.uid}:${account.region}`;
-          update({ [key]: { account, at: Date.now(), profile: { activeDays: 100, characterCount: 30, achievements: 500 }, content: [{ mode: 'chaos', name: '혼돈의 기억', period: 1, stars: 12, progress: '4', hasData: true }], calendar: { version: 'test-version', source: 'hoyolab', at: Date.now(), start: Date.now() - 7 * 86400000, end: Date.now() + 7 * 86400000, periods: ['character', 'weapon'].map(pool => ({ pool, name: '테스트 픽업', start: Date.now() - 7 * 86400000, end: Date.now() + 7 * 86400000 })) } },
+          update({ [key]: { account, at: Date.now(), profile: { activeDays: 100, characterCount: 30, achievements: 500 }, content: [{ mode: 'chaos', name: '혼돈의 기억', period: 1, stars: 12, progress: '4', hasData: true, end: Date.now() + 7 * 86400000 }], calendar: { version: 'test-version', source: 'hoyolab', at: Date.now(), start: Date.now() - 7 * 86400000, end: Date.now() + 7 * 86400000, periods: ['character', 'weapon'].map(pool => ({ pool, name: '테스트 픽업', featured: ['테스트 캐릭터'], start: Date.now() - 7 * 86400000, end: Date.now() + 7 * 86400000 })) } },
             profiles: { ...stored.profiles, [message.game]: { key, selected: `${account.uid}:${account.region}` } },
             [`gacha:${message.game}:${account.uid}`]: { uid: account.uid, records: [{ pool: 'character', rank: 5, at: Date.now() }, { pool: 'weapon', rank: 4, at: Date.now() }, { pool: 'standard', rank: 3, at: Date.now() }, { pool: 'character', rank: 3, at: Date.now() - 20 * 86400000 }] },
           });
@@ -74,14 +74,20 @@ try {
   await starrail.getByRole('button', { name: '정보 동기화' }).click();
   await page.waitForFunction(() => document.querySelector('#feedback').textContent === '붕괴: 스타레일 정보를 동기화했습니다.');
   assert.match(await starrail.locator('.result').textContent(), /오늘 출석 완료/);
-  assert.equal(await starrail.locator('.pull-total').textContent(), '3회', 'uses version windows rather than a rolling 30-day total');
+  assert.equal(await starrail.locator('.pull-count').count(), 3);
+  assert.match(await starrail.locator('.pickup-schedule').textContent(), /test-version.*테스트 캐릭터.*까지.*D-7/);
   assert.equal(await starrail.locator('.pull-count strong').first().textContent(), '1회');
   assert.equal(await starrail.locator('.pull-count strong').nth(1).textContent(), '1회');
-  assert.equal(await starrail.locator('.content-value').textContent(), '12별');
-  assert.match(await starrail.locator('.content-result').textContent(), /혼돈의 기억12별/);
+  assert.equal(await starrail.locator('.content-value').first().textContent(), '12별');
+  assert.match(await starrail.locator('.content-result').first().textContent(), /혼돈의 기억12별/);
   assert.equal(await starrail.locator('.mini-stat').count(), 0, 'detailed profile metrics stay in the dashboard');
-  assert.ok(await starrail.locator('.content-value').evaluate(node => parseFloat(getComputedStyle(node).fontSize) >= 25.2));
+  assert.ok(await starrail.locator('.content-value').first().evaluate(node => parseFloat(getComputedStyle(node).fontSize) >= 25.2));
   assert.ok(await starrail.locator('.game-name').evaluate(node => parseFloat(getComputedStyle(node).fontSize) >= 15.3));
+  assert.match(await starrail.locator('.reset-day').first().textContent(), /초기화 D-7/);
+  assert.equal(await starrail.locator('.content-result').count(), 4);
+  assert.equal(await starrail.locator('.anomaly .content-name').textContent(), '이상중재');
+  const boxes = await starrail.locator('.content-result').evaluateAll(nodes => nodes.slice(0, 3).map(node => node.getBoundingClientRect().y));
+  assert.ok(boxes.every(y => y === boxes[0]), 'first three content cards occupy one row');
   await page.waitForFunction(() => window.mockStorage.popupExpanded?.starrail === true);
   await page.reload();
   await page.waitForFunction(() => document.querySelector('.game[data-game="starrail"]').open === true && !document.querySelector('#connect').disabled);
@@ -99,16 +105,16 @@ try {
     } };
     await chrome.storage.local.set({ [key]: value });
   });
-  await starrail.getByText('50회', { exact: true }).waitFor();
+  await starrail.getByText('35회', { exact: true }).waitFor();
   assert.match(await starrail.locator('.pity-note').first().textContent(), /픽업 확정까지 최대 70회/);
-  assert.match(await starrail.locator('.recent-warp').textContent(), /공식 최근 5성/);
+  assert.equal(await starrail.locator('.recent-warp').count(), 0, 'recent history stays in the dashboard');
   await page.evaluate(async () => {
     const key = mockStorage.profiles.starrail.key;
     const value = structuredClone(mockStorage[key]); value.calendar.end = Date.now() - 1;
     await chrome.storage.local.set({ [key]: value });
   });
   await starrail.getByText('가챠 일정 갱신 필요', { exact: true }).waitFor();
-  assert.equal(await starrail.locator('.pull-total').count(), 0, 'a stale version must not display a current count');
+  assert.equal(await starrail.locator('.pull-count strong').first().textContent(), '—', 'stale counts are hidden');
   await page.evaluate(async () => { localStorage.removeItem('mock-login'); await chrome.runtime.sendMessage({ type: 'connection-status' }); });
   await page.waitForFunction(() => !document.querySelector('#connection-panel').hidden);
   assert.equal(await page.locator('#connection-panel').isVisible(), true, 'expired login restores link control');

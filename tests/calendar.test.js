@@ -14,9 +14,9 @@ test('Genshin calendar derives current version from active banners and merges si
   assert.equal(summarizeVersion([{ pool: 'character', at: end }], calendar, end).total, 1);
 });
 test('Star Rail uses declared version and server timestamps without mixing past/future versions', () => {
-  const warp = { version: '4.2', name: '캐릭터', time_info: { start_ts: String(start / 1000), end_ts: String(end / 1000) } };
+  const warp = { avatar_list: [{ rarity: 5, item_name: '픽업 캐릭터' }, { rarity: 4, item_name: '4성' }], version: '4.2', name: '캐릭터', time_info: { start_ts: String(start / 1000), end_ts: String(end / 1000) } };
   const calendar = normalizeCalendar('starrail', { cur_game_version: '4.2', avatar_card_pool_list: [warp, { ...warp, version: '4.1' }], equip_card_pool_list: [warp] }, now);
-  assert.equal(calendar.version, '4.2'); assert.equal(calendar.periods.length, 2);
+  assert.equal(calendar.version, '4.2'); assert.deepEqual(calendar.periods[0].featured, ['픽업 캐릭터']); assert.equal(calendar.periods.length, 2);
   assert.equal(summarizeVersion([{ pool: 'weapon', at: now }], calendar, now).weapon, 1);
 });
 test('missing records, unavailable schedules, and stale schedules never pretend to be zero pulls', () => {

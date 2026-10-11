@@ -13,6 +13,7 @@ export function normalizeCalendar(game, data, now = Date.now()) {
     : [['avatar_card_pool_list', 'character'], ['equip_card_pool_list', 'weapon']];
   if (!['genshin', 'starrail'].includes(game) || !Array.isArray(data?.avatar_card_pool_list)) throw new Error('가챠 일정 응답 형식이 변경되었습니다.');
   const candidates = fields.flatMap(([field, pool]) => (Array.isArray(data[field]) ? data[field] : []).map(item => ({
+    featured: (Array.isArray(item.avatars ?? item.avatar_list) ? (item.avatars ?? item.avatar_list) : []).filter(avatar => Number(avatar.rarity) === 5).map(avatar => label(avatar.name ?? avatar.item_name)).filter(Boolean).slice(0, 10),
     pool, name: label(item.pool_name ?? item.name), version: label(item.version_name ?? item.version),
     start: timestamp(item.start_timestamp ?? item.time_info?.start_ts),
     end: timestamp(item.end_timestamp ?? item.time_info?.end_ts),

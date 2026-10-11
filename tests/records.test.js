@@ -24,7 +24,7 @@ test('binding roles are selected only from matching game, with preferred UID/ser
     if (url.includes('/index?')) return ok({ stats: { active_days: 12, avatar_num: 4, achievement_num: 50 }, avatar_list: [{ id: 1001, name: '캐릭터', rarity: 5, level: 80 }] });
     return ok({ has_data: true, schedule_id: 42, star_num: 12, max_floor: '4', battle_num: 2, all_floor_detail: [{ maze_id: 4, name: '4층', star_num: 3, node_1: { score: 30000, avatars: [{ id: 1001, level: 80 }] } }] });
   });
-  assert.equal(result.account.uid, '800000002'); assert.equal(result.profile.activeDays, 12); assert.equal(result.content.length, 6);
+  assert.equal(result.account.uid, '800000002'); assert.equal(result.profile.activeDays, 12); assert.equal(result.content.length, 7);
   assert.equal(result.content[0].floors[0].stages[0].score, 30000);
 });
 test('profile privacy and one mode failure preserve basic UID and other records', async () => {
@@ -35,7 +35,7 @@ test('profile privacy and one mode failure preserve basic UID and other records'
     return ok({ has_data: false, schedule_id: 1, star_num: 0 });
   });
   assert.equal(result.account.uid, role.game_uid); assert.equal(result.profile, null); assert.match(result.profileError, /공개 설정/);
-  assert.equal(result.content.filter(item => item.error).length, 2); assert.equal(result.content.filter(item => item.hasData === false).length, 4);
+  assert.equal(result.content.filter(item => item.error).length, 3); assert.equal(result.content.filter(item => item.hasData === false).length, 4);
 });
 test('login expiration and unlinked accounts fail without misattributing cached data', async () => {
   await assert.rejects(getAccounts('genshin', async () => ({ ok: true, json: async () => ({ retcode: 10001 }) })), { kind: 'login' });

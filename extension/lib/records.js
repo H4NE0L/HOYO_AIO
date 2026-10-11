@@ -1,10 +1,11 @@
+import { contentTime } from './deadlines.js';
 import { normalizeCalendar } from './calendar.js';
 import { recordHeaders } from './md5.js';
 export const RECORD_GAMES = {
   genshin: { biz: 'hk4e_global', base: 'https://sg-public-api.hoyolab.com/event/game_record/genshin/api',
     modes: [{ id: 'abyss', name: '나선 비경', endpoint: 'spiralAbyss' }, { id: 'theater', name: '환상극', endpoint: 'role_combat' }] },
   starrail: { biz: 'hkrpg_global', base: 'https://bbs-api-os.hoyolab.com/game_record/hkrpg/api',
-    modes: [{ id: 'chaos', name: '혼돈의 기억', endpoint: 'challenge' }, { id: 'fiction', name: '허구 이야기', endpoint: 'challenge_story' }, { id: 'shadow', name: '종말의 환영', endpoint: 'challenge_boss' }] },
+    modes: [{ id: 'chaos', name: '혼돈의 기억', endpoint: 'challenge' }, { id: 'fiction', name: '허구 이야기', endpoint: 'challenge_story' }, { id: 'shadow', name: '종말의 환영', endpoint: 'challenge_boss' }, { id: 'anomaly', name: '이상중재', endpoint: 'challenge_peak' }] },
 };
 export class RecordError extends Error {
   constructor(kind, message) { super(message); this.kind = kind; }
@@ -68,12 +69,23 @@ function normalizeFloors(gameId, data) {
       teams: [floor.node_1, floor.node_2, floor.node_3].filter(Boolean).map(team) }],
   }));
 }
-export function normalizeContent(gameId, mode, data) {
+export function normalizeContent(gameId, mode, data, region) {
+  if (mode.id === 'anomaly') {
+    if (!Array.isArray(data.challenge_peak_records)) throw new RecordError('api', '이상중재 기록 형식이 변경되었습니다.');
+    return data.challenge_peak_records.map(run => ({
+      mode: mode.id, name: mode.name, season: String(run.group?.group_id ?? ''),
+      start: contentTime(run.group?.begin_time, region), end: contentTime(run.group?.end_time, region),
+      stars: number(run.boss_stars) != null && number(run.mob_stars) != null ? number(run.boss_stars) + number(run.mob_stars) : null,
+      hasData: run.has_challenge_record === true, progress: '', battles: number(run.battle_num), floors: [], detailSupported: false,
+    }));
+  }
+
   // Imaginarium Theater returns multiple seasons in data[] rather than abyss floors.
   if (mode.id === 'theater') {
     if (!Array.isArray(data.data)) throw new RecordError('api', '환상극 기록 형식이 변경되었습니다.');
     return data.data.slice(0, 2).map(season => ({
       mode: mode.id, name: mode.name, season: String(season.schedule?.id ?? season.schedule?.schedule_id ?? ''),
+      start: contentTime(season.schedule?.start_time, region), end: contentTime(season.schedule?.end_time, region),
       stars: number(season.stat?.medal_num), progress: number(season.stat?.max_round_id), battles: null,
       hasData: season.has_data === true,
       floors: (Array.isArray(season.detail?.rounds_data) ? season.detail.rounds_data : []).slice(0, 30).map(round => ({
@@ -83,7 +95,11 @@ export function normalizeContent(gameId, mode, data) {
     }));
   }
   if (typeof data.has_data !== 'boolean' && !('total_star' in data) && !('star_num' in data)) throw new RecordError('api', '콘텐츠 기록 형식이 변경되었습니다.');
-  return [{ mode: mode.id, name: mode.name, season: String(data.schedule_id ?? ''),
+  const seasonId = data.schedule_id ?? data.group_id ?? data.season_id;
+  const groups = Array.isArray(data.groups ?? data.seasons) ? (data.groups ?? data.seasons) : [];
+  const season = seasonId != null ? groups.find(item => String(item.schedule_id ?? item.group_id) === String(seasonId)) : groups[0];
+  return [{ mode: mode.id, name: mode.name, season: String(seasonId ?? season?.schedule_id ?? season?.group_id ?? ''),
+    start: contentTime(data.begin_time ?? season?.begin_time, region), end: contentTime(data.end_time ?? season?.end_time, region),
     stars: number(data.total_star ?? data.star_num), progress: text(data.max_floor), battles: number(data.total_battle_times ?? data.battle_num),
     hasData: data.has_data !== false, floors: normalizeFloors(gameId, data), detailSupported: true,
   }];
@@ -102,10 +118,10 @@ export async function syncRecord(gameId, preferred, fetcher = fetch) {
   const content = [];
   // Keep the official API's current/previous cycles; do not imply a lifetime history.
   for (const mode of RECORD_GAMES[gameId].modes) {
-    for (const period of mode.id === 'theater' ? [1] : [1, 2]) {
+    for (const period of ['theater', 'anomaly'].includes(mode.id) ? [1] : [1, 2]) {
       try {
         const data = await request(endpointUrl(gameId, account, mode.endpoint, { schedule_type: period, need_all: 'true', need_detail: 'true' }), fetcher);
-        content.push(...normalizeContent(gameId, mode, data).map(item => ({ ...item, period })));
+        content.push(...normalizeContent(gameId, mode, data, account.region).map(item => ({ ...item, period: item.start && item.end ? (item.start <= Date.now() && Date.now() < item.end ? 1 : 2) : period })));
       } catch (error) { content.push({ mode: mode.id, name: mode.name, period, error: error.message }); }
     }
   }
