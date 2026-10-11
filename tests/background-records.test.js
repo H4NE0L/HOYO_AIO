@@ -26,6 +26,9 @@ test('background persists concurrent game syncs, archives by account, and import
   const send = message => new Promise(resolve => handlers.message(message, { id: 'test-extension' }, resolve));
   try {
     await import('../extension/background.js');
+    const connection = await send({ type: 'connection-status' });
+    assert.equal(connection.connection.connected, true);
+    assert.equal(stored.connection.accounts.starrail[0].uid, '800000002');
     const replies = await Promise.all(['genshin', 'starrail'].map(game => send({ type: 'sync-record', game })));
     assert.ok(replies.every(reply => reply.ok));
     assert.deepEqual(Object.keys(stored.profiles).sort(), ['genshin', 'starrail'], 'parallel writes preserve both games');
@@ -35,8 +38,14 @@ test('background persists concurrent game syncs, archives by account, and import
     assert.equal((await send({ type: 'sync-record', game: 'starrail' })).ok, true);
     assert.equal(stored[key].archive.length, 12);
     loggedIn = false;
+    assert.equal((await send({ type: 'connection-status' })).connection.connected, false);
     assert.equal((await send({ type: 'sync-record', game: 'starrail' })).ok, false);
     assert.equal(stored.profiles.starrail.key, key); assert.match(stored.profiles.starrail.error, /로그인/); assert.equal(stored[key].archive.length, 12);
+    loggedIn = true;
+    stored.settings = { auto: false, games: { genshin: true, starrail: true } };
+    stored.results = { starrail: { status: 'login' } };
+    assert.equal((await send({ type: 'connect-hoyolab' })).connection.connected, true);
+    assert.equal(stored.results.starrail, undefined, 'restored login clears a blocked result without forcing a manual sign');
     const document = { info: { uid: '800000002' }, list: [{ id: '100000000000000001', name: '워프 캐릭터', gacha_type: '11', rank_type: '5', time: '2026-10-11 00:00:00' }] };
     const imports = await Promise.all([send({ type: 'import-gacha', game: 'starrail', document }), send({ type: 'import-gacha', game: 'starrail', document })]);
     assert.deepEqual(imports.map(reply => reply.count), [1, 0]);

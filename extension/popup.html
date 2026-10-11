@@ -1,17 +1,22 @@
 <!doctype html>
 <html lang="ko">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HOYO AIO</title><link rel="stylesheet" href="popup.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HOYO All-in-one</title><link rel="stylesheet" href="popup.css"></head>
 <body>
-  <header><span class="eyebrow">HOYOLAB COMPANION</span><h1>HOYO AIO <span>출석</span></h1><p>오늘의 보상을 한곳에서 챙기세요.</p></header>
+  <header><div class="heading"><span class="logo" aria-hidden="true">H</span><div><span class="eyebrow">YOUR HOYOVERSE COMPANION</span><h1>HOYO <span>All-in-one</span></h1></div></div>
+    <a class="dashboard-link" href="dashboard.html" target="_blank" rel="noopener noreferrer">All-in-one 상세 페이지 <span aria-hidden="true">↗</span></a>
+    <p id="connection-status" class="connection-status" role="status">호요랩 연결을 확인하고 있습니다.</p>
+  </header>
   <main>
-    <a class="dashboard-link" href="dashboard.html" target="_blank" rel="noopener noreferrer">내 게임 대시보드 열기 ↗</a>
-    <section class="automation"><label><input id="auto" type="checkbox"> 자동출석</label><p>한국 시간 오전 1시 이후, 크롬 실행 중 30분마다 확인합니다. 크롬을 다시 열면 누락된 출석을 확인합니다.</p></section>
-    <section id="games" aria-label="게임별 출석 상태"></section>
-    <button id="checkin" type="button">선택한 게임 지금 출석하기</button>
+    <section id="connection-panel" class="connection-panel" aria-label="호요랩 연동">
+      <h2>호요랩 계정을 연결하세요</h2><p>현재 크롬의 호요랩 로그인으로 게임 계정을 연결합니다.</p>
+      <button id="connect" type="button">호요랩 연동하기</button>
+      <p class="hint">로그인이 필요하면 호요랩이 열립니다. 로그인 후 팝업을 다시 열어주세요.</p>
+      <a href="https://www.hoyolab.com/" target="_blank" rel="noopener noreferrer">호요랩 열기 ↗</a>
+    </section>
+    <section id="games" aria-label="게임별 프로필과 설정"></section>
     <p id="feedback" role="status" aria-live="polite"></p>
-    <p class="note">먼저 공식 출석 페이지에서 호요랩에 로그인하세요. 보안 인증이 필요하면 공식 페이지에서 직접 완료해주세요.</p>
   </main>
-  <footer>글로벌 호요랩 · 로그인 정보는 별도로 저장하지 않습니다.</footer>
+  <footer>글로벌 호요랩 · 기록과 설정은 이 기기에 저장합니다.</footer>
   <script type="module" src="popup.js"></script>
 </body>
 </html>

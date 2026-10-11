@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "HOYO AIO",
-  "version": "0.2.0",
+  "name": "HOYO All-in-one",
+  "version": "0.3.0",
   "description": "원신·스타레일 출석, 프로필, 전적과 가챠 계획을 한곳에서 관리합니다.",
   "minimum_chrome_version": "120",
   "permissions": [
@@ -20,6 +20,6 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "HOYO AIO"
+    "default_title": "HOYO All-in-one"
   }
 }

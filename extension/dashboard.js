@@ -89,7 +89,7 @@ function checkinCard() {
   button.disabled = busy.has(game);
   const official = link('공식 출석 페이지 ↗', GAMES[game].page); official.target = '_blank'; official.rel = 'noopener noreferrer';
   row.append(button, official); node.append(row);
-  node.append(el('p', 'muted', `자동출석 ${state.settings?.auto ? '켜짐' : '꺼짐'} · 설정은 확장프로그램 팝업에서 변경`));
+  node.append(el('p', 'muted', `자동출석 ${state.settings?.auto && state.settings.games?.[game] !== false ? '켜짐' : '꺼짐'} · 설정은 확장프로그램 팝업에서 변경`));
   return node;
 }
 function profileCard() {
@@ -253,7 +253,7 @@ async function render() {
   const stored = await chrome.storage.local.get(null);
   if (token !== renderVersion || target !== game || page !== view) return;
   state = stored; record = state[state.profiles?.[game]?.key];
-  document.title = `HOYO AIO · ${GAMES[game].name} · ${VIEWS[view][0]}`;
+  document.title = `HOYO All-in-one · ${GAMES[game].name} · ${VIEWS[view][0]}`;
   document.querySelector('#breadcrumb').textContent = `${GAMES[game].name} / MY JOURNEY`;
   document.querySelector('#page-title').textContent = VIEWS[view][0];
   document.querySelector('#page-description').textContent = VIEWS[view][1];

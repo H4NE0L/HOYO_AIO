@@ -1,3 +1,4 @@
+import { verifyConnection } from './lib/connection.js';
 import { syncRecord, RECORD_GAMES } from './lib/records.js';
 import { parseImport, mergeRecords, planBudget, scheduleDays } from './lib/gacha.js';
 import { GAMES } from './lib/games.js';
@@ -71,6 +72,31 @@ function run(manual = false, target) {
   running = execute(manual, target).finally(() => { running = undefined; manualRun = false; activeTarget = undefined; });
   return running;
 }
+let connectionRequest;
+function connectHoyolab() {
+  if (!connectionRequest) connectionRequest = (async () => {
+    await initialize();
+    const stored = await chrome.storage.local.get(['connection', 'results']);
+    const connection = await verifyConnection(stored.connection);
+    const updates = { connection };
+    let reset = false;
+    if (connection.connected) {
+      const results = { ...stored.results };
+      for (const id of Object.keys(GAMES)) {
+        if (connection.gameErrors?.[id]) continue;
+        const identity = roles => (roles ?? []).map(role => `${role.uid}:${role.region}`).sort().join(',');
+        const changed = identity(stored.connection?.accounts?.[id]) !== identity(connection.accounts?.[id]);
+        if (results[id]?.status === 'login' || changed) { delete results[id]; reset = true; }
+      }
+      if (reset) updates.results = results;
+    }
+    await chrome.storage.local.set(updates);
+    // Resume only opted-in automation after reauthentication or an account switch.
+    if (reset) { if (running) await running.catch(() => {}); await run(); }
+    return connection;
+  })().finally(() => { connectionRequest = undefined; });
+  return connectionRequest;
+}
 let profileWrites = Promise.resolve();
 function updateProfile(gameId, update, extra = {}) {
   const task = profileWrites.catch(() => {}).then(async () => {
@@ -138,13 +164,15 @@ async function savePlan(gameId, value) {
   };
   await chrome.storage.local.set({ [`plan:${gameId}`]: plan });
 }
-function report(error) { console.error('HOYO AIO background error:', error.message); }
+function report(error) { console.error('HOYO All-in-one background error:', error.message); }
 chrome.runtime.onInstalled.addListener(() => { initialize().catch(report); });
 chrome.runtime.onStartup.addListener(() => { run().catch(report); });
 chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === ALARM) run().catch(report); });
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id) return;
-  if (message.type === 'sync-record') {
+  if (message.type === 'connect-hoyolab' || message.type === 'connection-status') {
+    connectHoyolab().then(connection => respond({ ok: true, connection }), () => respond({ ok: false, error: '호요랩 연결 상태를 확인하지 못했습니다.' }));
+  } else if (message.type === 'sync-record') {
     queueSync(message.game, message.role).then(() => respond({ ok: true }), error => respond({ ok: false, error: error.message }));
   } else if (message.type === 'import-gacha') {
     importGacha(message.game, message.document).then(count => respond({ ok: true, count }), error => respond({ ok: false, error: error.message }));
