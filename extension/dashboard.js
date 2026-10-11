@@ -45,7 +45,7 @@ function metric(label, value, hint) {
 function action(text, fn, primary = false) {
   const button = el('button', primary ? 'primary' : '', text); button.type = 'button'; button.addEventListener('click', fn); return button;
 }
-function link(text, href) { const node = el('a', '', text); node.href = href; return node; }
+function link(text, href) { const node = el('a', '', text); node.href = href; if (href.startsWith('https://')) { node.target = '_blank'; node.rel = 'noopener noreferrer'; } return node; }
 async function send(message) {
   const result = await chrome.runtime.sendMessage(message);
   if (!result?.ok) throw new Error(result?.error ?? '확장프로그램 연결에 실패했습니다.');
@@ -112,7 +112,7 @@ function profileCard() {
   node.append(metrics); return node;
 }
 function overview() {
-  root.append(profileCard());
+  root.append(profileCard(), link('호요랩 공식 전적 ↗', GAMES[game].recordPage));
   const grid = el('div', 'grid'); grid.append(checkinCard());
   const pulls = gachaData().data;
   const node = card(game === 'genshin' ? '최근 기원' : '최근 워프', '가져온 기록 기준 · 최근 30일');
@@ -186,6 +186,7 @@ function versionGachaCard(records) {
     if (stats.chronicled) metrics.append(metric('묶음 기원', `${number(stats.chronicled)}회`));
     node.append(metrics);
   } else node.append(notice(stats.status === 'records-missing' ? '현재 프로필 UID의 가챠 기록을 가져오면 이번 버전 횟수를 집계합니다.' : stats.status === 'schedule-stale' ? '저장된 가챠 일정이 현재 기간과 맞지 않습니다. 호요랩 동기화로 갱신해주세요.' : '호요랩 동기화로 현재 버전의 가챠 일정을 조회해주세요.', true));
+  node.append(link('호요랩 공식 전적·가챠 일정 ↗', GAMES[game].recordPage));
   if (record?.calendarError) node.append(notice(`${record.calendarError}${record.calendar ? ' 아래는 마지막으로 저장된 일정입니다.' : ''}`));
   if (record?.calendar) {
     node.append(table(['배너 유형', '이름', '시작 (한국)', '종료 (한국)'], record.calendar.periods.map(period => [POOLS[period.pool], period.name || '—', date(period.start), date(period.end)])));

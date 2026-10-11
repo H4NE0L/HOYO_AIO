@@ -187,3 +187,9 @@ tests/
 - 조회 실패는 프로필·출석·다른 배너 조회를 막지 않습니다. 공식 페이지에서 로그인이나 인증을 완료한 뒤 다시 동기화하세요. 기록이 없으면 확정 여부를 추측하지 않습니다. 원신의 버전 횟수·스택은 가져온 JSON 기준이며 무기 운명 포인트 자동 판정은 지원하지 않습니다.
 
 검증: Node 단위 테스트 및 Chrome API를 모의한 Chromium 화면 테스트. 실제 로그인 계정의 공식 API 응답은 이 환경에서 검증하지 못했으므로 브라우저에서 원본 통계와 비교해야 합니다.
+
+공식 전적 및 가챠 일정 대조 페이지:
+- [원신 전적](https://act.hoyolab.com/app/community-game-records-sea/index.html?gid=2#/ys)
+- [스타레일 전적](https://act.hoyolab.com/app/community-game-records-sea/rpg/index.html?gid=6#/hsr)
+
+상세 페이지의 개요와 가챠 기록 메뉴에 게임별 공식 페이지 링크를 제공합니다. 전적 및 일정은 이미 연결한 HoYoLAB API로 조회하며 웹페이지 HTML을 스크래핑하지 않습니다.
