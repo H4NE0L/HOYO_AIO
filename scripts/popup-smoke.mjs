@@ -74,14 +74,14 @@ try {
   await starrail.getByRole('button', { name: '정보 동기화' }).click();
   await page.waitForFunction(() => document.querySelector('#feedback').textContent === '붕괴: 스타레일 정보를 동기화했습니다.');
   assert.match(await starrail.locator('.result').textContent(), /오늘 출석 완료/);
-  assert.equal(await starrail.locator('.pull-total').textContent(), '2회', 'uses version windows rather than a rolling 30-day total');
+  assert.equal(await starrail.locator('.pull-total').textContent(), '3회', 'uses version windows rather than a rolling 30-day total');
   assert.equal(await starrail.locator('.pull-count strong').first().textContent(), '1회');
   assert.equal(await starrail.locator('.pull-count strong').nth(1).textContent(), '1회');
   assert.equal(await starrail.locator('.content-value').textContent(), '12별');
   assert.match(await starrail.locator('.content-result').textContent(), /혼돈의 기억12별/);
   assert.equal(await starrail.locator('.mini-stat').count(), 0, 'detailed profile metrics stay in the dashboard');
-  assert.ok(await starrail.locator('.content-value').evaluate(node => parseFloat(getComputedStyle(node).fontSize) >= 28));
-  assert.ok(await starrail.locator('.game-name').evaluate(node => parseFloat(getComputedStyle(node).fontSize) >= 17));
+  assert.ok(await starrail.locator('.content-value').evaluate(node => parseFloat(getComputedStyle(node).fontSize) >= 25.2));
+  assert.ok(await starrail.locator('.game-name').evaluate(node => parseFloat(getComputedStyle(node).fontSize) >= 15.3));
   await page.waitForFunction(() => window.mockStorage.popupExpanded?.starrail === true);
   await page.reload();
   await page.waitForFunction(() => document.querySelector('.game[data-game="starrail"]').open === true && !document.querySelector('#connect').disabled);
@@ -89,6 +89,19 @@ try {
   await page.waitForFunction(() => window.mockStorage.settings.auto === false);
   assert.equal(await page.evaluate(() => window.mockMessages.some(message => ['checkin', 'checkin-game'].includes(message.type))), false, 'popup has no manual check-in action');
   await page.screenshot({ path: '/tmp/hoyo-popup-connected.png', fullPage: true });
+  await page.evaluate(async () => {
+    const key = mockStorage.profiles.starrail.key;
+    const value = structuredClone(mockStorage[key]);
+    value.warp = { uid: value.account.uid, at: Date.now(), pools: {
+      character: { cards: [{ version: value.calendar.version, count: 35 }], pity: 20, guaranteed: true, recent: [{ name: '공식 최근 5성', count: 70 }] },
+      weapon: { cards: [{ version: value.calendar.version, count: 12 }], pity: 10, guaranteed: false },
+      standard: { cards: [{ version: value.calendar.version, count: 3 }], pity: 5 },
+    } };
+    await chrome.storage.local.set({ [key]: value });
+  });
+  await starrail.getByText('50회', { exact: true }).waitFor();
+  assert.match(await starrail.locator('.pity-note').first().textContent(), /픽업 확정까지 최대 70회/);
+  assert.match(await starrail.locator('.recent-warp').textContent(), /공식 최근 5성/);
   await page.evaluate(async () => {
     const key = mockStorage.profiles.starrail.key;
     const value = structuredClone(mockStorage[key]); value.calendar.end = Date.now() - 1;

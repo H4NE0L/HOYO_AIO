@@ -1,3 +1,4 @@
+import { syncWarp } from './lib/warp.js';
 import { mergeCalendar } from './lib/calendar.js';
 import { verifyConnection } from './lib/connection.js';
 import { syncRecord, RECORD_GAMES } from './lib/records.js';
@@ -16,7 +17,7 @@ async function initialize() {
   if (!state.settings) await chrome.storage.local.set({ settings: settingsFrom() });
   // Set official web origins only for extension requests to known API paths.
   await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: [1, 2, 3, 4, 5],
+    removeRuleIds: [1, 2, 3, 4, 5, 6],
     addRules: Object.values(GAMES).map((game, index) => ({
       id: index + 1, priority: 1,
       action: { type: 'modifyHeaders', requestHeaders: [
@@ -37,7 +38,10 @@ async function initialize() {
         { header: 'Origin', operation: 'set', value: 'https://www.hoyolab.com' },
       ] },
       condition: { urlFilter: `|${url}`, resourceTypes: ['xmlhttprequest'], initiatorDomains: [chrome.runtime.id] },
-    }))),
+    }))).concat([{ id: 6, priority: 1, action: { type: 'modifyHeaders', requestHeaders: [
+      { header: 'Referer', operation: 'set', value: 'https://act.hoyolab.com/' },
+      { header: 'Origin', operation: 'set', value: 'https://act.hoyolab.com' },
+    ] }, condition: { urlFilter: '|https://sg-act-public-api.hoyolab.com/', resourceTypes: ['xmlhttprequest'], initiatorDomains: [chrome.runtime.id] } }]),
   });
   if (!await chrome.alarms.get(ALARM)) {
     await chrome.alarms.create(ALARM, { delayInMinutes: 1, periodInMinutes: 30 });
@@ -119,6 +123,10 @@ function queueSync(gameId, role) {
     const preferred = role ?? stored.profiles?.[gameId]?.selected;
     try {
       const record = await syncRecord(gameId, preferred);
+      if (gameId === 'starrail') {
+        try { record.warp = await syncWarp(record.account); }
+        catch (error) { record.warpError = error.message; }
+      }
       const key = `record:${gameId}:${record.account.uid}:${record.account.region}`;
       const cached = await chrome.storage.local.get(key);
       record.calendar = mergeCalendar(cached[key]?.calendar, record.calendar);

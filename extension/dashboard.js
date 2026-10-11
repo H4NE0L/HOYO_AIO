@@ -1,3 +1,4 @@
+import { warpVersion, pitySummary, WARP_PAGE } from './lib/warp.js';
 import { summarizeVersion } from './lib/calendar.js';
 import { GAMES } from './lib/games.js';
 import { RECORD_GAMES } from './lib/records.js';
@@ -175,12 +176,13 @@ function table(headers, rows) {
   table.append(body); wrapper.append(table); return wrapper;
 }
 function versionGachaCard(records) {
-  const node = card('이번 버전 픽업 집계', '호요랩의 서버별 가챠 일정과 가져온 기록을 비교합니다.');
-  const stats = summarizeVersion(records, record?.calendar);
+  const node = card('이번 버전 가챠 집계', '호요랩의 서버별 가챠 일정과 가져온 기록을 비교합니다.');
+  const stats = (game === 'starrail' ? warpVersion(record?.warp, record?.calendar) : null) ?? summarizeVersion(records, record?.calendar);
   if (stats.status === 'available') {
     node.append(el('h3', '', `${stats.version} 버전`));
     const metrics = el('div', 'metrics');
-    metrics.append(metric('픽업 합계', `${number(stats.total)}회`), metric('캐릭터 이벤트', `${number(stats.character)}회`), metric(game === 'genshin' ? '무기 이벤트' : '광추 이벤트', `${number(stats.weapon)}회`));
+    metrics.append(metric('가챠 합계', stats.total == null ? '확인 필요' : `${number(stats.total)}회`), metric('캐릭터 이벤트', stats.character == null ? '확인 필요' : `${number(stats.character)}회`), metric(game === 'genshin' ? '무기 이벤트' : '광추 이벤트', stats.weapon == null ? '확인 필요' : `${number(stats.weapon)}회`));
+    metrics.append(metric('상시', stats.standard == null ? '확인 필요' : `${number(stats.standard)}회`));
     if (stats.chronicled) metrics.append(metric('묶음 기원', `${number(stats.chronicled)}회`));
     node.append(metrics);
   } else node.append(notice(stats.status === 'records-missing' ? '현재 프로필 UID의 가챠 기록을 가져오면 이번 버전 횟수를 집계합니다.' : stats.status === 'schedule-stale' ? '저장된 가챠 일정이 현재 기간과 맞지 않습니다. 호요랩 동기화로 갱신해주세요.' : '호요랩 동기화로 현재 버전의 가챠 일정을 조회해주세요.', true));
@@ -189,10 +191,24 @@ function versionGachaCard(records) {
     node.append(table(['배너 유형', '이름', '시작 (한국)', '종료 (한국)'], record.calendar.periods.map(period => [POOLS[period.pool], period.name || '—', date(period.start), date(period.end)])));
     node.append(el('p', 'muted', `일정 조회 ${date(record.calendar.at)} · 버전 ${record.calendar.version}`));
   }
-  node.append(el('p', 'muted', '상시·초보자 배너는 제외합니다. 동일 시간의 동시 픽업은 유형별로 합산하며 기록을 중복 집계하지 않습니다. 호요랩이 제공했거나 이 기기에 보관한 기간만 집계하므로, 이전 픽업 기간이나 가챠 기록이 누락되면 버전 전체 횟수보다 적게 표시될 수 있습니다.'));
+  node.append(el('p', 'muted', '초보자 배너는 제외합니다. 상시는 제공된 버전 기간으로 집계합니다. 동일 시간의 동시 픽업은 유형별로 합산하며 기록을 중복 집계하지 않습니다. 호요랩이 제공했거나 이 기기에 보관한 기간만 집계하므로, 이전 픽업 기간이나 가챠 기록이 누락되면 버전 전체 횟수보다 적게 표시될 수 있습니다.'));
   return node;
 }
 function gachaPage() {
+  if (game === 'starrail') {
+    const official = card('공식 워프 통계', '호요랩 정보 동기화로 조회합니다. JSON 가져오기와 별도로 보관합니다.');
+    const button = el('a', '', '공식 워프 통계 페이지 ↗'); button.href = WARP_PAGE; button.target = '_blank'; button.rel = 'noopener noreferrer'; official.append(button);
+    if (record?.warp) {
+      official.append(el('p', 'muted', `조회 ${date(record.warp.at)} · UID ${record.warp.uid}`));
+      for (const [pool, name] of [['character', '캐릭터'], ['weapon', '광추'], ['standard', '상시']]) {
+        const data = record.warp.pools[pool];
+        official.append(el('h3', '', name), el('p', '', data?.error ?? pitySummary(pool, data)));
+        if (data?.recent?.length) official.append(table(['최근 5성', '획득까지 횟수', '픽업'], data.recent.map(item => [item.name, number(item.count), pool === 'standard' ? '—' : item.isUp == null ? '확인 필요' : item.isUp ? '픽업' : '비픽업'])));
+      }
+    } else official.append(notice(record?.warpError ?? '정보 동기화 후 공식 통계를 확인할 수 있습니다.'));
+    root.append(official);
+  }
+
   const node = card('기록 가져오기', 'UIGF v4 / 원신 UIGF 목록 / 스타레일 SRGF JSON · 최대 5MB');
   node.append(notice('현재는 로컬 JSON 파일 가져오기를 지원합니다. 게임 기록 URL에서 직접 수집하는 기능은 다음 단계입니다. 인증 URL·토큰은 입력하지 않습니다.', true));
   const input = el('input', 'file-input'); input.type = 'file'; input.accept = '.json,application/json'; input.setAttribute('aria-label', '가챠 기록 JSON 파일');

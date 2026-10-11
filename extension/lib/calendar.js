@@ -37,10 +37,11 @@ export function summarizeVersion(records, calendar, now = Date.now()) {
   // A pull appearing in overlapping simultaneous banner windows counts once.
   // Imported records don't identify which simultaneous character pickup was used.
   const matching = records.filter(record => record.at <= now && calendar.periods.some(period =>
-    record.pool === period.pool && record.at >= period.start && record.at <= period.end));
+    (record.pool === period.pool || record.pool === 'standard') && record.at >= period.start && record.at <= period.end));
   return { status: 'available', version: calendar.version, total: matching.length,
     character: matching.filter(item => item.pool === 'character').length,
     weapon: matching.filter(item => item.pool === 'weapon').length,
+    standard: matching.filter(item => item.pool === 'standard').length,
     chronicled: matching.filter(item => item.pool === 'chronicled').length,
     partial: calendar.partial === true,
   };

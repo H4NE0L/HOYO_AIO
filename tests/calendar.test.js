@@ -10,7 +10,7 @@ test('Genshin calendar derives current version from active banners and merges si
     { pool: 'character', at: start }, { pool: 'weapon', at: now }, { pool: 'standard', at: now }, { pool: 'beginner', at: now },
     { pool: 'character', at: start - 1 }, { pool: 'weapon', at: end + 1 }, { pool: 'character', at: now + 1 },
   ];
-  const result = summarizeVersion(records, calendar, now); assert.equal(result.total, 2); assert.equal(result.character, 1); assert.equal(result.weapon, 1);
+  const result = summarizeVersion(records, calendar, now); assert.equal(result.total, 3); assert.equal(result.character, 1); assert.equal(result.weapon, 1);
   assert.equal(summarizeVersion([{ pool: 'character', at: end }], calendar, end).total, 1);
 });
 test('Star Rail uses declared version and server timestamps without mixing past/future versions', () => {

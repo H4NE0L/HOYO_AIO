@@ -1,3 +1,5 @@
+import { warpVersion, pitySummary, WARP_PAGE } from './lib/warp.js';
+import { summarize } from './lib/gacha.js';
 import { GAMES } from './lib/games.js';
 import { settingsFrom, dayKey } from './lib/state.js';
 import { summarizeVersion } from './lib/calendar.js';
@@ -78,18 +80,36 @@ async function render() {
     ui.result.title = result?.message ?? '';
     while (ui.gacha.childNodes.length > 1) ui.gacha.lastChild.remove();
     const gacha = account ? stored[`gacha:${id}:${account.uid}`] : undefined;
-    const stats = summarizeVersion(gacha?.records, record?.calendar);
+    const official = id === 'starrail' ? warpVersion(record?.warp, record?.calendar) : null;
+    const stats = official ?? summarizeVersion(gacha?.records, record?.calendar);
     if (stats.status === 'available') {
-      const total = el('div', 'gacha-total'); total.append(el('span', 'version-label', `${stats.version} 버전 픽업`), el('strong', 'pull-total', `${number(stats.total)}회`));
+      const total = el('div', 'gacha-total'); total.append(el('span', 'version-label', `${stats.version} 버전 가챠`), el('strong', 'pull-total', stats.total == null ? '확인 필요' : `${number(stats.total)}회`));
       ui.gacha.append(total);
       const breakdown = el('div', 'pull-breakdown');
-      for (const [label, count] of [['캐릭터', stats.character], [id === 'genshin' ? '무기' : '광추', stats.weapon], ...(stats.chronicled ? [['묶음 기원', stats.chronicled]] : [])]) {
-        const box = el('div', 'pull-count', label); box.append(el('strong', '', `${number(count)}회`)); breakdown.append(box);
+      for (const [label, count] of [['캐릭터', stats.character], [id === 'genshin' ? '무기' : '광추', stats.weapon], ['상시', stats.standard], ...(stats.chronicled ? [['묶음 기원', stats.chronicled]] : [])]) {
+        const box = el('div', 'pull-count', label); box.append(el('strong', '', count == null ? '확인 필요' : `${number(count)}회`)); breakdown.append(box);
       }
-      ui.gacha.append(breakdown, el('p', 'hint', record?.calendarError ? '저장된 픽업 기간 · 가져온 기록 기준' : stats.partial ? '일부 제공 기간 · 가져온 기록 기준' : '제공된 픽업 기간 · 가져온 기록 기준'));
+      ui.gacha.append(breakdown, el('p', 'hint', official ? '공식 워프 통계 기준' : record?.calendarError ? '저장된 픽업 기간 · 가져온 기록 기준' : stats.partial ? '일부 제공 기간 · 가져온 기록 기준' : '제공된 픽업 기간 · 가져온 기록 기준'));
     } else {
       const reason = stats.status === 'records-missing' ? `${stats.version} 버전 · 기록 가져오기 필요` : stats.status === 'schedule-stale' ? '가챠 일정 갱신 필요' : '가챠 일정 확인 필요';
       ui.gacha.append(el('p', 'unavailable', reason));
+    }
+    const imported = gacha?.records ? summarize(gacha.records) : null;
+    for (const [pool, name] of [['character', '캐릭터'], ['weapon', id === 'genshin' ? '무기' : '광추'], ['standard', '상시']]) {
+      const api = record?.warp?.pools?.[pool];
+      const local = imported?.pools?.find(item => item.pool === pool);
+      const data = api && !api.error ? api : local?.known ? { pity: local.pity, guaranteed: null } : null;
+      ui.gacha.append(el('p', 'pity-note', `${name} · ${pitySummary(pool, data, id)}`));
+    }
+    if (id === 'starrail') {
+      ui.gacha.append(link('공식 워프 통계 ↗', WARP_PAGE));
+      const recent = record?.warp?.pools?.character?.recent?.[0];
+      if (recent) {
+        const row = el('div', 'recent-warp');
+        if (recent.icon) { const image = el('img'); image.src = recent.icon; image.alt = ''; image.addEventListener('error', () => image.remove(), { once: true }); row.append(image); }
+        row.append(el('span', '', `최근 5성 · ${recent.name} · ${number(recent.count)}회`)); ui.gacha.append(row);
+      }
+      if (record?.warpError || Object.values(record?.warp?.pools ?? {}).some(pool => pool.error)) ui.gacha.append(el('p', 'hint error', '공식 워프 통계 확인 필요 · 공식 페이지 로그인 후 다시 동기화'));
     }
     while (ui.content.childNodes.length > 1) ui.content.lastChild.remove();
     const recent = record?.content.filter(item => item.period === 1) ?? [];

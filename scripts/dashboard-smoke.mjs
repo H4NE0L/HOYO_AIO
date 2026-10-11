@@ -60,7 +60,7 @@ try {
   await page.getByLabel('가챠 기록 JSON 파일').setInputFiles({ name: 'records.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ info: { uid: '800000002' }, list: [] })) });
   await page.getByText('픽업 캐릭터', { exact: true }).waitFor();
   assert.match(await page.locator('#feedback').textContent(), /새 기록 1건/);
-  const version = page.locator('.card').filter({ has: page.getByRole('heading', { name: '이번 버전 픽업 집계', exact: true }) });
+  const version = page.locator('.card').filter({ has: page.getByRole('heading', { name: '이번 버전 가챠 집계', exact: true }) });
   assert.equal(await version.locator('.metrics .value').first().textContent(), '1회');
   assert.match(await version.locator('table').textContent(), /픽업/);
   await page.getByRole('button', { name: '픽업 계획', exact: true }).click();
