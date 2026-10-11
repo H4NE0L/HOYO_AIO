@@ -1,3 +1,4 @@
+import { summarizeVersion } from './lib/calendar.js';
 import { GAMES } from './lib/games.js';
 import { RECORD_GAMES } from './lib/records.js';
 import { dayKey } from './lib/state.js';
@@ -125,7 +126,7 @@ function overview() {
   for (const item of current) content.append(el('p', item.error ? 'error-text' : '', item.error ? `${item.name}: ${item.error}` : `${item.name} · ${item.hasData ? `${number(item.stars)}별 / 메달 · 진행 ${item.progress || '—'}` : '이번 회차 기록 없음'}`));
   content.append(link('요약과 상세 결과 보기 →', `#${game}/content`)); root.append(el('div', 'section-space'), content);
   const plan = state[`plan:${game}`];
-  const schedule = card('나의 픽업 일정', '직접 저장한 개인 계획입니다. 공식 일정 자동 연동은 준비 중입니다.');
+  const schedule = card('나의 픽업 일정', '직접 저장한 개인 계획입니다. 호요랩의 픽업 일정은 가챠 기록 메뉴에서 확인합니다.');
   if (plan?.name && plan?.date) {
     const days = scheduleDays(plan.date);
     schedule.append(el('h3', '', plan.name), el('p', 'status', `${plan.date} · ${days < 0 ? `${Math.abs(days)}일 지남` : days === 0 ? '오늘' : `D-${days}`}`));
@@ -173,6 +174,24 @@ function table(headers, rows) {
   const body = el('tbody'); rows.forEach(values => { const row = el('tr'); values.forEach(value => row.append(el('td', '', String(value)))); body.append(row); });
   table.append(body); wrapper.append(table); return wrapper;
 }
+function versionGachaCard(records) {
+  const node = card('이번 버전 픽업 집계', '호요랩의 서버별 가챠 일정과 가져온 기록을 비교합니다.');
+  const stats = summarizeVersion(records, record?.calendar);
+  if (stats.status === 'available') {
+    node.append(el('h3', '', `${stats.version} 버전`));
+    const metrics = el('div', 'metrics');
+    metrics.append(metric('픽업 합계', `${number(stats.total)}회`), metric('캐릭터 이벤트', `${number(stats.character)}회`), metric(game === 'genshin' ? '무기 이벤트' : '광추 이벤트', `${number(stats.weapon)}회`));
+    if (stats.chronicled) metrics.append(metric('묶음 기원', `${number(stats.chronicled)}회`));
+    node.append(metrics);
+  } else node.append(notice(stats.status === 'records-missing' ? '현재 프로필 UID의 가챠 기록을 가져오면 이번 버전 횟수를 집계합니다.' : stats.status === 'schedule-stale' ? '저장된 가챠 일정이 현재 기간과 맞지 않습니다. 호요랩 동기화로 갱신해주세요.' : '호요랩 동기화로 현재 버전의 가챠 일정을 조회해주세요.', true));
+  if (record?.calendarError) node.append(notice(`${record.calendarError}${record.calendar ? ' 아래는 마지막으로 저장된 일정입니다.' : ''}`));
+  if (record?.calendar) {
+    node.append(table(['배너 유형', '이름', '시작 (한국)', '종료 (한국)'], record.calendar.periods.map(period => [POOLS[period.pool], period.name || '—', date(period.start), date(period.end)])));
+    node.append(el('p', 'muted', `일정 조회 ${date(record.calendar.at)} · 버전 ${record.calendar.version}`));
+  }
+  node.append(el('p', 'muted', '상시·초보자 배너는 제외합니다. 동일 시간의 동시 픽업은 유형별로 합산하며 기록을 중복 집계하지 않습니다. 호요랩이 제공했거나 이 기기에 보관한 기간만 집계하므로, 이전 픽업 기간이나 가챠 기록이 누락되면 버전 전체 횟수보다 적게 표시될 수 있습니다.'));
+  return node;
+}
 function gachaPage() {
   const node = card('기록 가져오기', 'UIGF v4 / 원신 UIGF 목록 / 스타레일 SRGF JSON · 최대 5MB');
   node.append(notice('현재는 로컬 JSON 파일 가져오기를 지원합니다. 게임 기록 URL에서 직접 수집하는 기능은 다음 단계입니다. 인증 URL·토큰은 입력하지 않습니다.', true));
@@ -196,6 +215,7 @@ function gachaPage() {
     select.value = key ? state[key].uid : '';
     select.addEventListener('change', () => { importedSelection[game] = select.value; render(); }); root.append(select);
   }
+  root.append(versionGachaCard(data?.uid === record?.account.uid ? data?.records : undefined));
   if (!data) { root.append(empty('선택한 UID의 기록이 없습니다', '파일을 가져오거나 보관된 기록의 UID를 선택해주세요. 다른 계정의 기록은 프로필과 자동으로 합치지 않습니다.')); return; }
   if (record?.account.uid && data.uid !== record.account.uid) root.append(notice(`가져온 기록의 UID ${data.uid}는 현재 프로필 UID ${record.account.uid}와 다릅니다.`));
   const stats = summarize(data.records);

@@ -15,7 +15,7 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 let browser;
 try {
   browser = await chromium.launch({ ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}) });
-  const page = await browser.newPage({ viewport: { width: 410, height: 900 } });
+  const page = await browser.newPage({ viewport: { width: 460, height: 600 } });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
     const stored = JSON.parse(localStorage.getItem('mock-storage') ?? '{}');
@@ -42,9 +42,9 @@ try {
         }
         if (message.type === 'sync-record') {
           const account = roles[message.game][0], key = `record:${message.game}:${account.uid}:${account.region}`;
-          update({ [key]: { account, at: Date.now(), profile: { activeDays: 100, characterCount: 30, achievements: 500 }, content: [{ mode: 'chaos', name: '혼돈의 기억', period: 1, stars: 36, progress: '12', hasData: true }] },
+          update({ [key]: { account, at: Date.now(), profile: { activeDays: 100, characterCount: 30, achievements: 500 }, content: [{ mode: 'chaos', name: '혼돈의 기억', period: 1, stars: 12, progress: '4', hasData: true }], calendar: { version: 'test-version', source: 'hoyolab', at: Date.now(), start: Date.now() - 7 * 86400000, end: Date.now() + 7 * 86400000, periods: ['character', 'weapon'].map(pool => ({ pool, name: '테스트 픽업', start: Date.now() - 7 * 86400000, end: Date.now() + 7 * 86400000 })) } },
             profiles: { ...stored.profiles, [message.game]: { key, selected: `${account.uid}:${account.region}` } },
-            [`gacha:${message.game}:${account.uid}`]: { uid: account.uid, records: [{ pool: 'character', rank: 5, at: Date.now() }] },
+            [`gacha:${message.game}:${account.uid}`]: { uid: account.uid, records: [{ pool: 'character', rank: 5, at: Date.now() }, { pool: 'weapon', rank: 4, at: Date.now() }, { pool: 'standard', rank: 3, at: Date.now() }, { pool: 'character', rank: 3, at: Date.now() - 20 * 86400000 }] },
           });
         }
         return { ok: true };
@@ -74,9 +74,14 @@ try {
   await starrail.getByRole('button', { name: '정보 동기화' }).click();
   await page.waitForFunction(() => document.querySelector('#feedback').textContent === '붕괴: 스타레일 정보를 동기화했습니다.');
   assert.match(await starrail.locator('.result').textContent(), /오늘 출석 완료/);
-  assert.match(await starrail.locator('.mini-section').first().textContent(), /최근 30일 1회/);
-  assert.match(await starrail.locator('.mini-row').textContent(), /혼돈의 기억.*36별/);
-  assert.equal(await starrail.locator('.mini-stat strong').first().textContent(), '100');
+  assert.equal(await starrail.locator('.pull-total').textContent(), '2회', 'uses version windows rather than a rolling 30-day total');
+  assert.equal(await starrail.locator('.pull-count strong').first().textContent(), '1회');
+  assert.equal(await starrail.locator('.pull-count strong').nth(1).textContent(), '1회');
+  assert.equal(await starrail.locator('.content-value').textContent(), '12별');
+  assert.match(await starrail.locator('.content-result').textContent(), /혼돈의 기억12별/);
+  assert.equal(await starrail.locator('.mini-stat').count(), 0, 'detailed profile metrics stay in the dashboard');
+  assert.ok(await starrail.locator('.content-value').evaluate(node => parseFloat(getComputedStyle(node).fontSize) >= 28));
+  assert.ok(await starrail.locator('.game-name').evaluate(node => parseFloat(getComputedStyle(node).fontSize) >= 17));
   await page.waitForFunction(() => window.mockStorage.popupExpanded?.starrail === true);
   await page.reload();
   await page.waitForFunction(() => document.querySelector('.game[data-game="starrail"]').open === true && !document.querySelector('#connect').disabled);
@@ -84,10 +89,17 @@ try {
   await page.waitForFunction(() => window.mockStorage.settings.auto === false);
   assert.equal(await page.evaluate(() => window.mockMessages.some(message => ['checkin', 'checkin-game'].includes(message.type))), false, 'popup has no manual check-in action');
   await page.screenshot({ path: '/tmp/hoyo-popup-connected.png', fullPage: true });
+  await page.evaluate(async () => {
+    const key = mockStorage.profiles.starrail.key;
+    const value = structuredClone(mockStorage[key]); value.calendar.end = Date.now() - 1;
+    await chrome.storage.local.set({ [key]: value });
+  });
+  await starrail.getByText('가챠 일정 갱신 필요', { exact: true }).waitFor();
+  assert.equal(await starrail.locator('.pull-total').count(), 0, 'a stale version must not display a current count');
   await page.evaluate(async () => { localStorage.removeItem('mock-login'); await chrome.runtime.sendMessage({ type: 'connection-status' }); });
   await page.waitForFunction(() => !document.querySelector('#connection-panel').hidden);
   assert.equal(await page.locator('#connection-panel').isVisible(), true, 'expired login restores link control');
   assert.deepEqual(errors, []);
-  assert.ok(await page.evaluate(() => document.body.scrollWidth <= 390));
-  console.log('PASS: popup branding, initial login flow, verified link hiding/recovery, profile accordions, per-game automation, recent records, and persistent expansion (mocked Chrome APIs).');
+  assert.ok(await page.evaluate(() => document.body.scrollWidth <= 440));
+  console.log('PASS: popup branding, initial login flow, verified link hiding/recovery, profile accordions, per-game automation, version-window counts, prominent content results, stale schedule handling, and persistent expansion (mocked Chrome APIs).');
 } finally { await browser?.close(); await new Promise(resolve => server.close(resolve)); }

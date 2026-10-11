@@ -28,7 +28,7 @@ try {
           const key = `record:${message.game}:${account.uid}:asia`;
           state[key] = { account, profile: { activeDays: 100, characterCount: 50, achievements: 500, characters: [{ name: '<img src=x onerror=alert(1)>', level: 80, rarity: 5, rank: 2 }] },
             content: [{ name: starrail ? '혼돈의 기억' : '나선 비경', mode: starrail ? 'chaos' : 'abyss', season: '10', stars: 12, progress: '4', battles: 2, period: 1, hasData: true,
-              floors: [{ name: '4층', stars: 3, stages: [{ name: '전투 기록', score: 60000, teams: [[{ name: '캐릭터', level: 80 }]] }] }] }], archive: [], at: Date.now() };
+              floors: [{ name: '4층', stars: 3, stages: [{ name: '전투 기록', score: 60000, teams: [[{ name: '캐릭터', level: 80 }]] }] }] }], archive: [], calendar: { version: 'test-version', at: Date.now(), start: Date.now() - 86400000, end: Date.now() + 86400000, periods: [{ pool: 'character', name: '픽업', start: Date.now() - 86400000, end: Date.now() + 86400000 }] }, at: Date.now() };
           state.profiles = { ...state.profiles, [message.game]: { accounts: [account], selected: `${account.uid}:asia`, key, at: Date.now() } };
         }
         if (message.type === 'import-gacha') {
@@ -60,6 +60,9 @@ try {
   await page.getByLabel('가챠 기록 JSON 파일').setInputFiles({ name: 'records.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ info: { uid: '800000002' }, list: [] })) });
   await page.getByText('픽업 캐릭터', { exact: true }).waitFor();
   assert.match(await page.locator('#feedback').textContent(), /새 기록 1건/);
+  const version = page.locator('.card').filter({ has: page.getByRole('heading', { name: '이번 버전 픽업 집계', exact: true }) });
+  assert.equal(await version.locator('.metrics .value').first().textContent(), '1회');
+  assert.match(await version.locator('table').textContent(), /픽업/);
   await page.getByRole('button', { name: '픽업 계획', exact: true }).click();
   await page.locator('[name="currency"]').fill('1600'); await page.locator('[name="tickets"]').fill('2'); await page.locator('[name="pity"]').fill('20'); await page.locator('[name="guaranteed"]').check();
   assert.equal(await page.locator('.metrics .value').nth(2).textContent(), '70회');

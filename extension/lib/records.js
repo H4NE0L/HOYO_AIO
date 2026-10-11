@@ -1,3 +1,4 @@
+import { normalizeCalendar } from './calendar.js';
 import { recordHeaders } from './md5.js';
 export const RECORD_GAMES = {
   genshin: { biz: 'hk4e_global', base: 'https://sg-public-api.hoyolab.com/event/game_record/genshin/api',
@@ -10,9 +11,9 @@ export class RecordError extends Error {
 }
 const number = value => value !== null && value !== '' && Number.isFinite(Number(value)) ? Number(value) : null;
 const text = value => typeof value === 'string' ? value.slice(0, 100) : '';
-async function request(url, fetcher) {
+async function request(url, fetcher, body) {
   let response;
-  try { response = await fetcher(url.href, { credentials: 'include', cache: 'no-store', headers: recordHeaders(), signal: AbortSignal.timeout(15000) }); }
+  try { response = await fetcher(url.href, { credentials: 'include', cache: 'no-store', headers: { ...recordHeaders(), ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { method: 'POST', body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(15000) }); }
   catch { throw new RecordError('network', '호요랩에 연결하지 못했습니다. 잠시 후 다시 동기화해주세요.'); }
   if (!response.ok) throw new RecordError('network', `호요랩 서버 오류 (HTTP ${response.status})`);
   let payload;
@@ -91,9 +92,13 @@ export async function syncRecord(gameId, preferred, fetcher = fetch) {
   const accounts = await getAccounts(gameId, fetcher);
   const account = accounts.find(role => `${role.uid}:${role.region}` === preferred) ?? accounts[0];
   if (!account) throw new RecordError('unlinked', '연결된 게임 계정을 찾지 못했습니다. 호요랩에서 계정 연결을 확인해주세요.');
-  const profileResult = await Promise.allSettled([request(endpointUrl(gameId, account, 'index', gameId === 'genshin' ? { avatar_list_type: 0 } : {}), fetcher).then(normalizeProfile)]);
-  const profile = profileResult[0].status === 'fulfilled' ? profileResult[0].value : null;
-  const profileError = profileResult[0].status === 'rejected' ? profileResult[0].reason.message : null;
+  const calendarUrl = gameId === 'genshin' ? new URL(`${RECORD_GAMES[gameId].base}/act_calendar`) : endpointUrl(gameId, account, 'get_act_calender');
+  const [profileResult, calendarResult] = await Promise.allSettled([
+    request(endpointUrl(gameId, account, 'index', gameId === 'genshin' ? { avatar_list_type: 0 } : {}), fetcher).then(normalizeProfile),
+    request(calendarUrl, fetcher, gameId === 'genshin' ? { role_id: account.uid, server: account.region } : undefined).then(data => normalizeCalendar(gameId, data)),
+  ]);
+  const profile = profileResult.status === 'fulfilled' ? profileResult.value : null;
+  const profileError = profileResult.status === 'rejected' ? profileResult.reason.message : null;
   const content = [];
   // Keep the official API's current/previous cycles; do not imply a lifetime history.
   for (const mode of RECORD_GAMES[gameId].modes) {
@@ -104,5 +109,5 @@ export async function syncRecord(gameId, preferred, fetcher = fetch) {
       } catch (error) { content.push({ mode: mode.id, name: mode.name, period, error: error.message }); }
     }
   }
-  return { accounts, account, profile, profileError, content, at: Date.now() };
+  return { accounts, account, profile, profileError, content, calendar: calendarResult.status === 'fulfilled' ? calendarResult.value : null, calendarError: calendarResult.status === 'rejected' ? calendarResult.reason.message : null, at: Date.now() };
 }

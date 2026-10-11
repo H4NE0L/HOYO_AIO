@@ -1,3 +1,4 @@
+import { mergeCalendar } from './lib/calendar.js';
 import { verifyConnection } from './lib/connection.js';
 import { syncRecord, RECORD_GAMES } from './lib/records.js';
 import { parseImport, mergeRecords, planBudget, scheduleDays } from './lib/gacha.js';
@@ -120,6 +121,7 @@ function queueSync(gameId, role) {
       const record = await syncRecord(gameId, preferred);
       const key = `record:${gameId}:${record.account.uid}:${record.account.region}`;
       const cached = await chrome.storage.local.get(key);
+      record.calendar = mergeCalendar(cached[key]?.calendar, record.calendar);
       const archive = new Map((cached[key]?.archive ?? []).map(item => [`${item.mode}:${item.season}`, item]));
       for (const item of record.content) if (!item.error && item.hasData && item.season) archive.set(`${item.mode}:${item.season}`, { ...item, at: record.at });
       record.archive = [...archive.values()].sort((a, b) => b.at - a.at).slice(0, 60);

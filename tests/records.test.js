@@ -55,3 +55,33 @@ test('genshin profile, abyss teams, and theater medals/acts use distinct schemas
   assert.equal(calls.filter(url => url.includes('/role_combat?')).length, 1);
   assert.throws(() => normalizeContent('starrail', { id: 'chaos' }, {}), { kind: 'api' });
 });
+
+test('calendar sync uses game-specific GET/POST routes and isolates calendar failure', async () => {
+  for (const game of ['genshin', 'starrail']) {
+    let requested = false;
+    const now = Date.now();
+    const response = await syncRecord(game, undefined, async (url, options) => {
+      if (url.includes('binding/')) return ok({ list: [{ ...role, game_biz: game === 'genshin' ? 'hk4e_global' : 'hkrpg_global' }] });
+      if (url.includes('/index?')) return ok({ stats: {}, avatar_list: [] });
+      if (url.includes('/act_calendar') || url.includes('/get_act_calender')) {
+        requested = true;
+        if (game === 'genshin') {
+          assert.equal(options.method, 'POST'); assert.equal(JSON.parse(options.body).role_id, role.game_uid);
+          return ok({ avatar_card_pool_list: [{ version_name: 'test', pool_name: '픽업', start_timestamp: (now - 86400000) / 1000, end_timestamp: (now + 86400000) / 1000 }], weapon_card_pool_list: [] });
+        }
+        assert.equal(options.method, undefined); assert.match(url, /role_id=800000001/);
+        return ok({ cur_game_version: 'test', avatar_card_pool_list: [{ version: 'test', name: '픽업', time_info: { start_ts: (now - 86400000) / 1000, end_ts: (now + 86400000) / 1000 } }], equip_card_pool_list: [] });
+      }
+      if (url.includes('role_combat')) return ok({ data: [] });
+      return ok({ has_data: false, schedule_id: 1, star_num: 0 });
+    });
+    assert.equal(requested, true); assert.equal(response.calendar.version, 'test'); assert.equal(response.calendarError, null);
+  }
+  const failed = await syncRecord('starrail', undefined, async url => {
+    if (url.includes('binding/')) return ok({ list: [role] });
+    if (url.includes('/get_act_calender')) return { ok: false, status: 503 };
+    if (url.includes('/index?')) return ok({ stats: {}, avatar_list: [] });
+    return ok({ has_data: false, star_num: 0 });
+  });
+  assert.equal(failed.account.uid, role.game_uid); assert.equal(failed.calendar, null); assert.match(failed.calendarError, /503/);
+});

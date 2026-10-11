@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "HOYO All-in-one",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "원신·스타레일 출석, 프로필, 전적과 가챠 계획을 한곳에서 관리합니다.",
   "minimum_chrome_version": "120",
   "permissions": [
