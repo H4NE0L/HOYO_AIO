@@ -34,7 +34,7 @@ test('service worker initializes alarms, isolates failures, and runs automatic c
     await import('../extension/background.js');
     assert.deepEqual(await send({ type: 'wake' }), { ok: true });
     assert.equal(calls.length, 0, 'automatic execution is off by default');
-    assert.equal(rules.addRules.length, 2);
+    assert.equal(rules.addRules.length, 5);
     assert.deepEqual(rules.addRules[0].condition.initiatorDomains, ['test-extension']);
     assert.equal(alarm.periodInMinutes, 30);
     assert.deepEqual(await send({ type: 'checkin' }), { ok: true });

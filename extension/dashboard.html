@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HOYO AIO · 대시보드</title><link rel="stylesheet" href="dashboard.css"></head>
+<body>
+  <header class="topbar"><a class="brand" href="#genshin/overview"><span class="logo">H</span><span>HOYO <b>AIO</b></span></a><span class="tagline">나의 여정을 한곳에서</span><a class="official" href="https://www.hoyolab.com/" target="_blank" rel="noopener noreferrer">호요랩 ↗</a></header>
+  <div class="shell">
+    <div class="gamebar"><div id="game-tabs" role="tablist" aria-label="게임 선택"><button id="tab-genshin" role="tab" data-game="genshin" aria-controls="workspace">원신</button><button id="tab-starrail" role="tab" data-game="starrail" aria-controls="workspace">붕괴: 스타레일</button></div><span class="local-label">개인 대시보드</span></div>
+    <div class="layout"><aside><p class="nav-caption">내 게임 기록</p><nav id="navigation" aria-label="기능 선택"></nav><div class="aside-note"><span class="status-dot"></span><span>글로벌 호요랩<br><small>기록과 계획은 이 기기에 저장</small></span></div></aside>
+    <main id="workspace" role="tabpanel" aria-labelledby="tab-genshin">
+      <div class="page-heading"><div><p id="breadcrumb" class="eyebrow"></p><h1 id="page-title"></h1><p id="page-description" class="muted"></p></div><button id="sync" class="primary">호요랩 동기화</button></div>
+      <div class="accountbar"><label for="account">게임 계정</label><select id="account" aria-label="게임 계정 선택"><option>동기화 후 선택할 수 있습니다</option></select><span id="sync-time" class="muted"></span></div>
+      <p id="feedback" role="status" aria-live="polite"></p><div id="content"></div>
+    </main></div>
+    <footer>HOYO AIO · 개인 기록을 위한 비공식 도구 <span>출처: 호요랩 / 직접 가져온 기록 / 직접 입력한 계획</span></footer>
+  </div>
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>
