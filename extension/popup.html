@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HOYO AIO</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <header><span class="eyebrow">HOYOLAB COMPANION</span><h1>HOYO AIO <span>출석</span></h1><p>오늘의 보상을 한곳에서 챙기세요.</p></header>
+  <main>
+    <section class="automation"><label><input id="auto" type="checkbox"> 자동출석</label><p>한국 시간 오전 1시 이후, 크롬 실행 중 30분마다 확인합니다. 크롬을 다시 열면 누락된 출석을 확인합니다.</p></section>
+    <section id="games" aria-label="게임별 출석 상태"></section>
+    <button id="checkin" type="button">선택한 게임 지금 출석하기</button>
+    <p id="feedback" role="status" aria-live="polite"></p>
+    <p class="note">먼저 공식 출석 페이지에서 호요랩에 로그인하세요. 보안 인증이 필요하면 공식 페이지에서 직접 완료해주세요.</p>
+  </main>
+  <footer>글로벌 호요랩 · 로그인 정보는 별도로 저장하지 않습니다.</footer>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

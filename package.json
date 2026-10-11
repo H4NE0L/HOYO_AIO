@@ -1,0 +1,14 @@
+{
+  "name": "hoyo-aio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check extension/background.js && node --check extension/popup.js",
+    "test:ui": "node scripts/popup-smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.0"
+  }
+}
