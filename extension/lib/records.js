@@ -3,7 +3,7 @@ import { normalizeCalendar } from './calendar.js';
 import { recordHeaders } from './md5.js';
 export const RECORD_GAMES = {
   genshin: { biz: 'hk4e_global', base: 'https://sg-public-api.hoyolab.com/event/game_record/genshin/api',
-    modes: [{ id: 'abyss', name: '나선 비경', endpoint: 'spiralAbyss' }, { id: 'theater', name: '환상극', endpoint: 'role_combat' }] },
+    modes: [{ id: 'abyss', name: '나선 비경', endpoint: 'spiralAbyss' }, { id: 'theater', name: '환상극', endpoint: 'role_combat' }, { id: 'onslaught', name: '지맥제압전', endpoint: 'hard_challenge' }] },
   starrail: { biz: 'hkrpg_global', base: 'https://bbs-api-os.hoyolab.com/game_record/hkrpg/api',
     modes: [{ id: 'chaos', name: '혼돈의 기억', endpoint: 'challenge' }, { id: 'fiction', name: '허구 이야기', endpoint: 'challenge_story' }, { id: 'shadow', name: '종말의 환영', endpoint: 'challenge_boss' }, { id: 'anomaly', name: '이상중재', endpoint: 'challenge_peak' }] },
 };
@@ -70,6 +70,16 @@ function normalizeFloors(gameId, data) {
   }));
 }
 export function normalizeContent(gameId, mode, data, region) {
+  if (mode.id === 'onslaught') {
+    if (!data.schedule || !data.single) throw new RecordError('api', '지맥제압전 기록 형식이 변경되었습니다.');
+    const difficulty = number(data.single.best?.difficulty);
+    return [{ mode: mode.id, name: mode.name, season: String(data.schedule.schedule_id ?? ''),
+      start: contentTime(data.schedule.start_time, region), end: contentTime(data.schedule.end_time, region),
+      stars: null, difficulty, summary: difficulty != null ? `난이도 ${difficulty}` : data.single.has_data ? '진행 중' : '미진행',
+      progress: difficulty != null ? String(difficulty) : '', battles: null,
+      hasData: data.single.has_data === true, floors: [], detailSupported: false,
+    }];
+  }
   if (mode.id === 'anomaly') {
     if (!Array.isArray(data.challenge_peak_records)) throw new RecordError('api', '이상중재 기록 형식이 변경되었습니다.');
     return data.challenge_peak_records.map(run => ({
@@ -118,9 +128,9 @@ export async function syncRecord(gameId, preferred, fetcher = fetch) {
   const content = [];
   // Keep the official API's current/previous cycles; do not imply a lifetime history.
   for (const mode of RECORD_GAMES[gameId].modes) {
-    for (const period of ['theater', 'anomaly'].includes(mode.id) ? [1] : [1, 2]) {
+    for (const period of ['theater', 'anomaly', 'onslaught'].includes(mode.id) ? [1] : [1, 2]) {
       try {
-        const data = await request(endpointUrl(gameId, account, mode.endpoint, { schedule_type: period, need_all: 'true', need_detail: 'true' }), fetcher);
+        const data = await request(endpointUrl(gameId, account, mode.endpoint, mode.id === 'onslaught' ? { need_detail: 'true' } : { schedule_type: period, need_all: 'true', need_detail: 'true' }), fetcher);
         content.push(...normalizeContent(gameId, mode, data, account.region).map(item => ({ ...item, period: item.start && item.end ? (item.start <= Date.now() && Date.now() < item.end ? 1 : 2) : period })));
       } catch (error) { content.push({ mode: mode.id, name: mode.name, period, error: error.message }); }
     }

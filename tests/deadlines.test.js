@@ -24,3 +24,9 @@ test('anomaly arbitration uses per-season results rather than lifetime best summ
   }, 'prod_official_asia');
   assert.equal(result[0].stars, 12); assert.equal(result[0].season, '42'); assert.ok(result[0].end);
 });
+test('Stygian Onslaught retains its actual single-player difficulty and season deadline', () => {
+  const mode = { id: 'onslaught', name: '지맥제압전' };
+  const [item] = normalizeContent('genshin', mode, { schedule: { schedule_id: 5, start_time: 1791000000, end_time: 1792000000 }, single: { has_data: true, best: { difficulty: 5 } }, mp: { best: { difficulty: 6 } } }, 'os_asia');
+  assert.equal(item.summary, '난이도 5'); assert.equal(item.stars, null); assert.equal(item.end, 1792000000000);
+  assert.throws(() => normalizeContent('genshin', mode, {}), /형식/);
+});

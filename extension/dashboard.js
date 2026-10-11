@@ -124,7 +124,7 @@ function overview() {
   const content = card('최근 엔드 콘텐츠', '조회 가능한 최신 회차의 결과입니다.');
   const current = record?.content.filter(item => item.period === 1) ?? [];
   if (!current.length) content.append(empty('전적을 연결해주세요', '호요랩 동기화 후 콘텐츠별 요약을 확인할 수 있습니다.'));
-  for (const item of current) content.append(el('p', item.error ? 'error-text' : '', item.error ? `${item.name}: ${item.error}` : `${item.name} · ${item.hasData ? `${number(item.stars)}별 / 메달 · 진행 ${item.progress || '—'}` : '이번 회차 기록 없음'}`));
+  for (const item of current) content.append(el('p', item.error ? 'error-text' : '', item.error ? `${item.name}: ${item.error}` : `${item.name} · ${item.hasData ? item.summary ?? `${number(item.stars)}별 / 메달 · 진행 ${item.progress || '—'}` : '이번 회차 기록 없음'}`));
   content.append(link('요약과 상세 결과 보기 →', `#${game}/content`)); root.append(el('div', 'section-space'), content);
   const plan = state[`plan:${game}`];
   const schedule = card('나의 픽업 일정', '직접 저장한 개인 계획입니다. 호요랩의 픽업 일정은 가챠 기록 메뉴에서 확인합니다.');
@@ -138,7 +138,7 @@ function contentCard(item, archived = false) {
   const node = card(item.name, archived ? `기기에 보관 · ${date(item.at)}` : `${item.period === 2 ? '이전 회차' : '최근 회차'}${item.season ? ` · 회차 ${item.season}` : ''}`);
   if (item.error) { node.append(notice(item.error)); return node; }
   if (!item.hasData) { node.append(empty('이 회차의 기록이 없습니다', '플레이 기록이 없거나 호요랩에 아직 반영되지 않았을 수 있습니다.')); return node; }
-  const metrics = el('div', 'metrics'); metrics.append(metric('별 / 메달', number(item.stars)), metric('최대 진행', item.progress || '—'), metric('전투 횟수', number(item.battles)));
+  const metrics = el('div', 'metrics'); metrics.append(metric(item.difficulty != null ? '클리어 난이도' : '별 / 메달', number(item.difficulty ?? item.stars)), metric('최대 진행', item.progress || '—'), metric('전투 횟수', number(item.battles)));
   node.append(metrics);
   if (item.floors?.length) {
     const details = el('details'); details.append(el('summary', '', '층별 상세 결과와 편성 보기'));

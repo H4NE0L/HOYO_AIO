@@ -54,3 +54,5 @@ body { padding: 14px; }
 footer { margin-top: 12px; padding-top: 10px; }
 
 .remaining-label { color: #ffd0a5; font-size: 10.8px; }.content-result.needs-attention { border-color: #6b5b43; }
+
+.pickup-period { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; margin: 5px 0 0; font-size: 11.7px; }.pickup-period > span { min-width: 0; overflow-wrap: anywhere; }.pickup-deadline { color: #ffd0a5; flex-shrink: 0; font-size: 11px; }.pull-count .pity-note strong { display: inline; font-size: inherit; margin: 0; }.pull-count .pity-note .needed-pulls { color: #a4eddb; font-size: 12px; }.pull-count .pity-note .guarantee-label { color: #a4eddb; }.game[data-game="genshin"] .content-grid { grid-template-columns: repeat(3,minmax(0,1fr)); }

@@ -76,8 +76,8 @@ try {
   assert.match(await starrail.locator('.result').textContent(), /오늘 출석 완료/);
   assert.equal(await starrail.locator('.pull-count').count(), 3);
   assert.match(await starrail.locator('.pickup-schedule').textContent(), /test-version.*테스트 캐릭터.*까지.*D-7/);
-  assert.equal(await starrail.locator('.pull-count strong').first().textContent(), '1회');
-  assert.equal(await starrail.locator('.pull-count strong').nth(1).textContent(), '1회');
+  assert.equal(await starrail.locator('.pity-count').first().textContent(), '1회');
+  assert.equal(await starrail.locator('.pity-count').nth(1).textContent(), '—');
   assert.equal(await starrail.locator('.content-value').first().textContent(), '12별');
   assert.match(await starrail.locator('.content-result').first().textContent(), /혼돈의 기억12별/);
   assert.equal(await starrail.locator('.mini-stat').count(), 0, 'detailed profile metrics stay in the dashboard');
@@ -98,6 +98,7 @@ try {
   await page.evaluate(async () => {
     const key = mockStorage.profiles.starrail.key;
     const value = structuredClone(mockStorage[key]);
+    value.calendar.periods.push({ pool: 'character', featured: ['기간이 긴 캐릭터'], name: '별도 픽업', start: Date.now() - 86400000, end: Date.now() + 14 * 86400000 });
     value.warp = { uid: value.account.uid, at: Date.now(), pools: {
       character: { cards: [{ version: value.calendar.version, count: 35 }], pity: 20, guaranteed: true, recent: [{ name: '공식 최근 5성', count: 70 }] },
       weapon: { cards: [{ version: value.calendar.version, count: 12 }], pity: 10, guaranteed: false },
@@ -105,16 +106,20 @@ try {
     } };
     await chrome.storage.local.set({ [key]: value });
   });
-  await starrail.getByText('35회', { exact: true }).waitFor();
+  await starrail.getByText('20회', { exact: true }).waitFor();
   assert.match(await starrail.locator('.pity-note').first().textContent(), /픽업 확정까지 최대 70회/);
+  assert.doesNotMatch(await starrail.locator('.pity-note').first().textContent(), /20\/90/);
+  assert.equal(await starrail.locator('.needed-pulls').first().textContent(), '최대 70회');
+  assert.equal(await starrail.locator('.pickup-period').count(), 2);
+  assert.match(await starrail.locator('.pickup-period').nth(1).textContent(), /기간이 긴 캐릭터.*D-14/);
+  assert.match(await starrail.locator('.pickup-period').first().textContent(), /D-7/);
   assert.equal(await starrail.locator('.recent-warp').count(), 0, 'recent history stays in the dashboard');
   await page.evaluate(async () => {
     const key = mockStorage.profiles.starrail.key;
     const value = structuredClone(mockStorage[key]); value.calendar.end = Date.now() - 1;
     await chrome.storage.local.set({ [key]: value });
   });
-  await starrail.getByText('가챠 일정 갱신 필요', { exact: true }).waitFor();
-  assert.equal(await starrail.locator('.pull-count strong').first().textContent(), '—', 'stale counts are hidden');
+  assert.equal(await starrail.locator('.pity-count').first().textContent(), '20회', 'pity is independent of version windows');
   await page.evaluate(async () => { localStorage.removeItem('mock-login'); await chrome.runtime.sendMessage({ type: 'connection-status' }); });
   await page.waitForFunction(() => !document.querySelector('#connection-panel').hidden);
   assert.equal(await page.locator('#connection-panel').isVisible(), true, 'expired login restores link control');
